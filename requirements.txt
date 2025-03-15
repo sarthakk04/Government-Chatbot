@@ -1,0 +1,8 @@
+google-generativeai
+gtts
+langdetect
+pygame
+sounddevice
+numpy
+pyttsx3
+SpeechRecognition
