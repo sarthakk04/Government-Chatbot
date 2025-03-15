@@ -7,7 +7,7 @@ from langdetect import detect
 import re
 
 # Initialize Groq client
-client = Groq(api_key="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")
+client = Groq(api_key="GROQ_KEY")
 
 def initialize_audio():
     pygame.mixer.init()
