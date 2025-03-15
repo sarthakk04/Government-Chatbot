@@ -4,6 +4,7 @@ import pyttsx3
 import pygame
 import os
 from langdetect import detect
+import re
 
 # Initialize Groq client
 client = Groq(api_key="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")
@@ -34,13 +35,12 @@ def listen_to_speech():
     except sr.RequestError:
         return "Could not request results", "en"
 
+def clean_response(text):
+    return re.sub(r'[#*]', '', text)
+
 def speak_response(text, lang):
     engine = pyttsx3.init()
     voices = engine.getProperty('voices')
-    
-    # Debugging: List available voices
-    # for i, voice in enumerate(voices):
-    #     print(f"Voice {i}: {voice.name} ({voice.id})")
     
     if lang == "mr" and len(voices) > 0:
         engine.setProperty('voice', voices[0].id)  # Adjust if needed
@@ -74,7 +74,7 @@ def main():
                     {"role": "user", "content": prompt + "\nUser's question: " + user_input}
                 ],
                 temperature=1,
-                max_completion_tokens=1024,
+                max_completion_tokens=512,
                 top_p=1,
                 stream=True,
                 stop=None,
@@ -86,6 +86,7 @@ def main():
                 if content:
                     response_text += content
             
+            response_text = clean_response(response_text)
             print(f"🤖 Bot: {response_text}")
             
             speak_response(response_text, detected_lang)
