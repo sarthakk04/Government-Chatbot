@@ -6,7 +6,7 @@ import os
 from langdetect import detect
 
 # Configure Google Gemini API
-genai.configure(api_key="AIzaSyBB7oqHq3oKbsk3MIThmHuB94k5IaTpMP4")
+genai.configure(api_key="GEMINI_KEY")
 
 # Initialize the model
 generation_config = {
