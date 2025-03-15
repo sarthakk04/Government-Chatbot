@@ -1,14 +1,17 @@
+#saburii
 import speech_recognition as sr
 import google.generativeai as genai
 import pyttsx3
 import pygame
 import os
+import time
 from langdetect import detect
+from gtts import gTTS  # Import gTTS for Marathi voice output
 
-# Configure Google Gemini API
-genai.configure(api_key="GEMINI_KEY")
+# Google Gemini API Configuration
+genai.configure(api_key="AIzaSyDZ_v2xmxY9AMMiLYLAjFOvQf4g_dL-uy4")
 
-# Initialize the model
+# Initialize Model
 generation_config = {
     "temperature": 0.9,
     "top_p": 0.95,
@@ -21,43 +24,50 @@ model = genai.GenerativeModel(
     generation_config=generation_config
 )
 
-# Initialize chat session with predefined role
 chat = model.start_chat(
     history=[
         {
             "role": "user",
             "parts": [
-                "Consider yourself as Rahul. You know each and every law of Maharashtra, including the Department of Land Records and legal processes. Your task is to provide accurate, up-to-date, and verified information. If someone asks about a topic, provide complete steps, the whole process, and necessary resources."
+                "तुम्ही स्वतःला राहुल समजा. तुम्हाला महाराष्ट्रातील सर्व कायदे आणि भू अभिलेख विभागाच्या प्रक्रिया माहित आहेत. तुम्ही योग्य, अचूक आणि संपूर्ण माहिती पुरवली पाहिजे."
             ],
         },
         {
             "role": "model",
             "parts": [
-                "Hello, I'm Rahul, your expert on Maharashtra laws and land records. I will provide verified and complete information on any legal topic you ask. How can I assist you today?"
+                "नमस्कार! मी राहुल, तुमचा महाराष्ट्रातील कायदे आणि भू अभिलेख तज्ज्ञ. मी तुम्हाला योग्य आणि संपूर्ण माहिती देईन."
             ],
         }
     ]
 )
 
-def initialize_audio():
-    pygame.mixer.init()
+# Initialize pyttsx3 for English TTS
+engine = pyttsx3.init()
+engine.setProperty('rate', 180)
+
+# Initialize Pygame for playing Marathi gTTS audio
+pygame.mixer.init()
 
 def detect_language(text):
     try:
-        lang = detect(text)
-        return lang if lang in ['mr', 'hi', 'en'] else 'en'
+        return detect(text)
     except:
         return 'en'
 
 def listen_to_speech():
-    r = sr.Recognizer()
+    recognizer = sr.Recognizer()
     with sr.Microphone() as source:
-        print("🎤 Listening...")
-        r.adjust_for_ambient_noise(source, duration=0.5)
-        audio = r.listen(source, timeout=5)
-    
+        print("🎤 Listening... Speak now!")
+
+        # Increase listening duration
+        recognizer.adjust_for_ambient_noise(source, duration=1)
+        recognizer.energy_threshold = 300
+        recognizer.pause_threshold = 2  # Wait longer for user to speak
+
+        audio = recognizer.listen(source, timeout=10)  # Increased timeout
+
     try:
-        text = r.recognize_google(audio, language="mr-IN")
+        text = recognizer.recognize_google(audio, language="mr-IN")
         lang = detect_language(text)
         return text, lang
     except sr.UnknownValueError:
@@ -65,40 +75,51 @@ def listen_to_speech():
     except sr.RequestError:
         return "Could not request results", "en"
 
-def speak_response(text, lang):
-    engine = pyttsx3.init()
-    voices = engine.getProperty('voices')
-    
+def get_response(text, lang):
+    """Ensures Marathi response if needed"""
     if lang == "mr":
-        engine.setProperty('voice', voices[0].id)  # Adjust for Marathi voice if available
-    elif lang == "hi":
-        engine.setProperty('voice', voices[1].id)  # Adjust for Hindi voice
+        response = chat.send_message(f"कृपया हा प्रश्न मराठीत उत्तर द्या: {text}")
     else:
-        engine.setProperty('voice', voices[2].id)  # Default English voice
-    
-    engine.setProperty('rate', 180)  # Speed up voice
-    engine.say(text)
-    engine.runAndWait()
+        response = chat.send_message(text)
+
+    response_text = response.text.replace("*", "").strip()
+    print(f"🤖 Bot: {response_text}")
+    return response_text
+
+def speak_response(text, lang):
+    """Marathi audio using gTTS, English using pyttsx3"""
+    print(f"🎙️ Speaking in {lang}...")
+
+    if lang == "mr":
+        tts = gTTS(text=text, lang="mr", slow=False)
+        audio_file = "response.mp3"
+        tts.save(audio_file)
+        pygame.mixer.music.load(audio_file)
+        pygame.mixer.music.play()
+        while pygame.mixer.music.get_busy():
+            time.sleep(0.5)
+        os.remove(audio_file)
+    else:
+        voices = engine.getProperty('voices')
+        engine.setProperty('voice', voices[0].id)
+        engine.say(text)
+        engine.runAndWait()
 
 def main():
-    initialize_audio()
-    print("🤖 Chatbot is ready! Speak in English, Hindi, or Marathi")
-    
+    print("🤖 Chatbot is ready! Speak in English, Hindi, or Marathi.")
+
     while True:
         try:
             user_input, detected_lang = listen_to_speech()
-            print(f"🗣️ You: {user_input}")
-            
+            print(f"🗣️ You: {user_input} (Detected: {detected_lang})")
+
             if user_input.lower() in ['quit', 'exit', 'बंद', 'बंद करो']:
                 print("👋 Goodbye!")
                 break
-            
-            response = chat.send_message(user_input)
-            response_text = response.text.replace("*", "").strip()
-            print(f"🤖 Bot: {response_text}")
-            
+
+            response_text = get_response(user_input, detected_lang)
             speak_response(response_text, detected_lang)
-        
+
         except Exception as e:
             print(f"⚠️ Error: {str(e)}")
             continue
